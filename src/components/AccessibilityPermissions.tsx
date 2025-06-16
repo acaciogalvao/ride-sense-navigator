@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Eye, Smartphone, Settings, AlertTriangle } from "lucide-react";
+import { Shield, Eye, Smartphone, Settings, AlertTriangle, MapPin, Bell } from "lucide-react";
 
 const AccessibilityPermissions = ({ onPermissionChange }) => {
   const { toast } = useToast();
@@ -14,7 +14,10 @@ const AccessibilityPermissions = ({ onPermissionChange }) => {
     accessibility: false,
     screenOverlay: false,
     deviceAdmin: false,
-    notifications: false
+    notifications: false,
+    location: false,
+    storage: false,
+    usageStats: false
   });
 
   const [monitoredApps] = useState([
@@ -26,7 +29,7 @@ const AccessibilityPermissions = ({ onPermissionChange }) => {
   ]);
 
   const requestPermission = async (permissionType) => {
-    // Simular solicitação de permissão
+    // Simular solicitação de permissão nativa
     toast({
       title: "Solicitando Permissão",
       description: `Redirecionando para configurações do sistema...`,
@@ -55,7 +58,10 @@ const AccessibilityPermissions = ({ onPermissionChange }) => {
       accessibility: "Acesso aos serviços de acessibilidade concedido",
       screenOverlay: "Permissão para overlay na tela concedida",
       deviceAdmin: "Permissões administrativas concedidas",
-      notifications: "Permissão para notificações concedida"
+      notifications: "Permissão para notificações concedida",
+      location: "Permissão de localização concedida",
+      storage: "Permissão de armazenamento concedida",
+      usageStats: "Permissão de estatísticas de uso concedida"
     };
     return descriptions[permissionType];
   };
@@ -100,12 +106,12 @@ const AccessibilityPermissions = ({ onPermissionChange }) => {
         </CardContent>
       </Card>
 
-      {/* Permissões Necessárias */}
+      {/* Permissões Críticas */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            Permissões Necessárias
+            Permissões Críticas
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -153,10 +159,62 @@ const AccessibilityPermissions = ({ onPermissionChange }) => {
             </div>
           </div>
 
+          {/* Estatísticas de Uso */}
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex items-center gap-3">
+              <Eye className="h-5 w-5 text-indigo-500" />
+              <div>
+                <p className="font-medium">Estatísticas de Uso</p>
+                <p className="text-sm text-gray-600">Para monitorar apps de corrida</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {getPermissionStatus(permissions.usageStats)}
+              {!permissions.usageStats && (
+                <Button 
+                  size="sm" 
+                  onClick={() => requestPermission('usageStats')}
+                >
+                  Conceder
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Permissões Secundárias */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Permissões Adicionais</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Localização */}
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex items-center gap-3">
+              <MapPin className="h-5 w-5 text-green-500" />
+              <div>
+                <p className="font-medium">Localização</p>
+                <p className="text-sm text-gray-600">Para mostrar localização no mapa</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {getPermissionStatus(permissions.location)}
+              {!permissions.location && (
+                <Button 
+                  size="sm" 
+                  onClick={() => requestPermission('location')}
+                >
+                  Conceder
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* Notificações */}
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              <Bell className="h-5 w-5 text-orange-500" />
               <div>
                 <p className="font-medium">Notificações</p>
                 <p className="text-sm text-gray-600">Para alertas de corridas analisadas</p>
@@ -168,6 +226,28 @@ const AccessibilityPermissions = ({ onPermissionChange }) => {
                 <Button 
                   size="sm" 
                   onClick={() => requestPermission('notifications')}
+                >
+                  Conceder
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Armazenamento */}
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex items-center gap-3">
+              <Smartphone className="h-5 w-5 text-cyan-500" />
+              <div>
+                <p className="font-medium">Armazenamento</p>
+                <p className="text-sm text-gray-600">Para salvar dados e configurações</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {getPermissionStatus(permissions.storage)}
+              {!permissions.storage && (
+                <Button 
+                  size="sm" 
+                  onClick={() => requestPermission('storage')}
                 >
                   Conceder
                 </Button>
@@ -238,7 +318,6 @@ const AccessibilityPermissions = ({ onPermissionChange }) => {
         </CardContent>
       </Card>
 
-      {/* Aviso Legal */}
       <Card className="border-orange-200 bg-orange-50">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
