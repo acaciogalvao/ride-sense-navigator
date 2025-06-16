@@ -1,27 +1,43 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Menu, RefreshCcw, Locate } from "lucide-react";
+import { Menu, RefreshCcw, Locate, Shield, Eye } from "lucide-react";
 import MapComponent from "@/components/MapComponent";
 import RideAnalyzer from "@/components/RideAnalyzer";
 import SettingsPanel from "@/components/SettingsPanel";
 import RideSimulator from "@/components/RideSimulator";
+import AccessibilityPermissions from "@/components/AccessibilityPermissions";
+import { realTimeMonitor, RideData } from "@/services/RealTimeMonitor";
 
 const Index = () => {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [activeTab, setActiveTab] = useState('main');
   const [settings, setSettings] = useState({
-    goodRideThreshold: 2.5, // R$ por km
-    mediumRideThreshold: 1.8, // R$ por km
-    minimumTimeValue: 0.5, // R$ por minuto
+    goodRideThreshold: 2.5,
+    mediumRideThreshold: 1.8,
+    minimumTimeValue: 0.5,
     autoAnalysis: true
   });
 
+  const [monitoringSettings, setMonitoringSettings] = useState({
+    enabledApps: ['99', 'Uber', 'Indriver', 'UrbanoNorte', 'ITZ Move'],
+    scanInterval: 2000,
+    autoAnalysis: true,
+    vibrationEnabled: true,
+    soundEnabled: false
+  });
+
   const [currentRide, setCurrentRide] = useState(null);
+  const [monitoringStatus, setMonitoringStatus] = useState({
+    isActive: false,
+    activeApps: [],
+    totalApps: 5
+  });
 
   const analyzeRide = (rideData) => {
     const { pricePerKm, estimatedTime, distance, totalValue, app } = rideData;
@@ -40,7 +56,6 @@ const Index = () => {
       message = 'Corrida mediana';
     }
 
-    // Mostrar toast com resultado
     toast({
       title: `${app} - ${message}`,
       description: `R$ ${pricePerKm.toFixed(2)}/km • ${distance.toFixed(1)}km • ${estimatedTime}min • Total: R$ ${totalValue.toFixed(2)}`,
@@ -54,17 +69,43 @@ const Index = () => {
     setCurrentRide({ ...rideData, status, color });
   };
 
+  const handleStartMonitoring = () => {
+    const success = realTimeMonitor.startMonitoring(monitoringSettings);
+    if (success) {
+      setIsMonitoring(true);
+      toast({
+        title: "Monitoramento Iniciado",
+        description: "Sistema está monitorando apps em tempo real",
+        className: "border-l-4 border-l-green-500 bg-green-50",
+      });
+    } else {
+      toast({
+        title: "Erro ao Iniciar",
+        description: "Verifique as permissões necessárias",
+        className: "border-l-4 border-l-red-500 bg-red-50",
+      });
+    }
+  };
+
+  const handleStopMonitoring = () => {
+    realTimeMonitor.stopMonitoring();
+    setIsMonitoring(false);
+    toast({
+      title: "Monitoramento Parado",
+      description: "Sistema não está mais monitorando",
+      className: "border-l-4 border-l-yellow-500 bg-yellow-50",
+    });
+  };
+
   const simulateScreenReading = () => {
     setIsAnalyzing(true);
     
-    // Simular apps de transporte
     const apps = ['99', 'Uber', 'Indriver', 'UrbanoNorte', 'ITZ Move'];
     const randomApp = apps[Math.floor(Math.random() * apps.length)];
     
-    // Simular dados de corrida
-    const distance = Math.random() * 15 + 2; // 2-17km
-    const basePrice = Math.random() * 25 + 10; // R$ 10-35
-    const estimatedTime = Math.floor(distance * 3 + Math.random() * 10); // tempo estimado
+    const distance = Math.random() * 15 + 2;
+    const basePrice = Math.random() * 25 + 10;
+    const estimatedTime = Math.floor(distance * 3 + Math.random() * 10);
     const pricePerKm = basePrice / distance;
     
     setTimeout(() => {
@@ -82,6 +123,37 @@ const Index = () => {
       setIsAnalyzing(false);
     }, 2000);
   };
+
+  useEffect(() => {
+    // Configurar callbacks do monitor
+    realTimeMonitor.setCallbacks({
+      onRideDetected: (ride: RideData) => {
+        console.log('Corrida detectada automaticamente:', ride);
+        analyzeRide(ride);
+      },
+      onAppStateChange: (appName: string, isActive: boolean) => {
+        console.log(`App ${appName} ${isActive ? 'ativado' : 'desativado'}`);
+      },
+      onPermissionRequired: (permission: string) => {
+        toast({
+          title: "Permissão Necessária",
+          description: `Configure a permissão: ${permission}`,
+          className: "border-l-4 border-l-orange-500 bg-orange-50",
+        });
+      }
+    });
+
+    // Atualizar status periodicamente
+    const statusInterval = setInterval(() => {
+      const status = realTimeMonitor.getMonitoringStatus();
+      setMonitoringStatus(status);
+    }, 1000);
+
+    return () => {
+      clearInterval(statusInterval);
+      realTimeMonitor.stopMonitoring();
+    };
+  }, []);
 
   useEffect(() => {
     // Simular leitura automática a cada 30 segundos se estiver ativo
@@ -115,8 +187,35 @@ const Index = () => {
                     Configurações e opções do RideSense Navigator
                   </SheetDescription>
                 </SheetHeader>
+                
+                {/* Menu Tabs */}
+                <div className="flex gap-2 mt-4 mb-6">
+                  <Button
+                    variant={activeTab === 'main' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setActiveTab('main')}
+                  >
+                    Configurações
+                  </Button>
+                  <Button
+                    variant={activeTab === 'permissions' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setActiveTab('permissions')}
+                  >
+                    <Shield className="h-4 w-4 mr-1" />
+                    Permissões
+                  </Button>
+                </div>
+
                 <div className="mt-6">
-                  <SettingsPanel settings={settings} onSettingsChange={setSettings} />
+                  {activeTab === 'main' && (
+                    <SettingsPanel settings={settings} onSettingsChange={setSettings} />
+                  )}
+                  {activeTab === 'permissions' && (
+                    <AccessibilityPermissions onPermissionChange={(type, granted) => {
+                      console.log(`Permissão ${type}: ${granted ? 'concedida' : 'negada'}`);
+                    }} />
+                  )}
                 </div>
               </SheetContent>
             </Sheet>
@@ -125,7 +224,10 @@ const Index = () => {
           
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="bg-white/20 text-white">
-              {settings.autoAnalysis ? 'Auto ON' : 'Auto OFF'}
+              {isMonitoring ? 'Monitorando' : 'Parado'}
+            </Badge>
+            <Badge variant="secondary" className="bg-white/10 text-white text-xs">
+              {monitoringStatus.activeApps.length}/{monitoringStatus.totalApps}
             </Badge>
             <Button
               variant="ghost"
@@ -148,6 +250,36 @@ const Index = () => {
           
           {/* Floating Cards */}
           <div className="absolute top-4 left-4 right-4 z-10 space-y-3">
+            {/* Monitoring Control Card */}
+            <Card className="bg-white/95 backdrop-blur-sm shadow-lg">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Monitoramento em Tempo Real</p>
+                    <p className="text-xs text-gray-600">
+                      {isMonitoring 
+                        ? `${monitoringStatus.activeApps.length} apps ativos`
+                        : 'Sistema parado'
+                      }
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${
+                      isMonitoring ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                    }`} />
+                    <Button
+                      size="sm"
+                      variant={isMonitoring ? "destructive" : "default"}
+                      onClick={isMonitoring ? handleStopMonitoring : handleStartMonitoring}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      {isMonitoring ? 'Parar' : 'Iniciar'}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Current Analysis Card */}
             {currentRide && (
               <Card className="bg-white/95 backdrop-blur-sm shadow-lg">
@@ -191,11 +323,13 @@ const Index = () => {
                   <div>
                     <p className="text-sm font-medium">Status do Sistema</p>
                     <p className="text-xs text-gray-600">
-                      {isAnalyzing ? 'Analisando corrida...' : 'Aguardando chamadas'}
+                      {isAnalyzing ? 'Analisando corrida...' : 
+                       isMonitoring ? 'Monitorando em tempo real' : 'Aguardando ativação'}
                     </p>
                   </div>
                   <div className={`w-3 h-3 rounded-full ${
-                    isAnalyzing ? 'bg-blue-500 animate-pulse' : 'bg-green-500'
+                    isAnalyzing ? 'bg-blue-500 animate-pulse' :
+                    isMonitoring ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
                   }`} />
                 </div>
               </CardContent>
