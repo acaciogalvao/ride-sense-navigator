@@ -40,7 +40,7 @@ const Index = () => {
   });
 
   const analyzeRide = (rideData) => {
-    const { pricePerKm, estimatedTime, distance, totalValue, app } = rideData;
+    const { pricePerKm, estimatedTime, distance, totalValue, app, location } = rideData;
     
     let status = 'bad';
     let color = 'red';
@@ -58,7 +58,7 @@ const Index = () => {
 
     toast({
       title: `${app} - ${message}`,
-      description: `R$ ${pricePerKm.toFixed(2)}/km • ${distance.toFixed(1)}km • ${estimatedTime}min • Total: R$ ${totalValue.toFixed(2)}`,
+      description: `📍 ${location}\n🛣️ Distância: ${distance.toFixed(1)} km\n⏱️ Tempo: ${estimatedTime} minutos\n💰 R$ ${pricePerKm.toFixed(2)}/km\n💸 Total: R$ ${totalValue.toFixed(2)}`,
       className: `border-l-4 ${
         color === 'green' ? 'border-l-green-500 bg-green-50' :
         color === 'yellow' ? 'border-l-yellow-500 bg-yellow-50' :
